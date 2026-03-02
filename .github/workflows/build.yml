@@ -40,13 +40,13 @@ jobs:
           cp -r dist-linux/Magpie/* Magpie.AppDir/usr/bin/
           cp resources/magpie.png Magpie.AppDir/
           cat > Magpie.AppDir/Magpie.desktop <<EOL
-[Desktop Entry]
-Name=Magpie
-Exec=Magpie
-Icon=magpie
-Type=Application
-Categories=Utility;
-EOL
+          [Desktop Entry]
+          Name=Magpie
+          Exec=Magpie
+          Icon=magpie
+          Type=Application
+          Categories=Utility;
+          EOL
           ./appimagetool-x86_64.AppImage Magpie.AppDir
           mv Magpie-x86_64.AppImage Magpie-${{ env.VERSION }}.AppImage
 
