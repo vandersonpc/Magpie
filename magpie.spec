@@ -10,7 +10,7 @@ block_cipher = None
 # ------------------------------------------------------------
 
 app_name = "Magpie"
-entry_script = "src/magpie/main.py"  # keep src/myapp even if folder not renamed
+entry_script = "src/myapp/main.py"  # keep src/myapp even if folder not renamed
 
 # ------------------------------------------------------------
 # Platform Detection
