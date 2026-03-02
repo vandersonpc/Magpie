@@ -9,6 +9,11 @@ Requires:       hledger  (https://hledger.org/install.html)
 Run:            python3 magpiedesktop.py
                 python3 magpie_desktop.py --config path/to/config.json
 """
+__APP_VERSION__   = "1.0.1"
+__APP_AUTHOR__    = "Vanderson PC"
+__APP_EMAIL__     = "vandersonpc@gmail.com"
+__APP_URL__       = "https://github.com/vandersonpc/magpie"
+
 
 import sys
 import os
@@ -2636,6 +2641,7 @@ class MainWindow(QMainWindow):
 
         self._apply_global_style()
         self._build_ui()
+        self._build_menu()
         self._wire_shortcuts()
         self._select_report(0)
         self._fetch_accounts()
@@ -3466,6 +3472,170 @@ class MainWindow(QMainWindow):
             f"font-size: 11px; color: {C_ACCENT5};")
         QTimer.singleShot(300, self._reload)
         QTimer.singleShot(300, self._fetch_accounts)
+
+    def _build_menu(self):
+        """Add a native menu bar with a Help → About entry."""
+        mb = self.menuBar()
+        mb.setStyleSheet(f"""
+            QMenuBar {{
+                background: {C_BG_PANEL};
+                color: {C_TEXT_PRI};
+                border-bottom: 1px solid {C_BORDER};
+                font-size: 13px;
+                padding: 2px 4px;
+            }}
+            QMenuBar::item {{
+                background: transparent;
+                padding: 4px 10px;
+                border-radius: 5px;
+            }}
+            QMenuBar::item:selected {{
+                background: {C_BG_HOVER};
+            }}
+            QMenu {{
+                background: {C_BG_CARD};
+                color: {C_TEXT_PRI};
+                border: 1px solid {C_BORDER};
+                border-radius: 8px;
+                padding: 4px;
+                font-size: 13px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px 6px 12px;
+                border-radius: 5px;
+            }}
+            QMenu::item:selected {{
+                background: {C_ACCENT}33;
+                color: {C_ACCENT};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: {C_BORDER};
+                margin: 4px 8px;
+            }}
+        """)
+
+        # ── Help menu ────────────────────────────────────────────────────────────
+        help_menu = mb.addMenu("Help")
+
+        about_action = QAction("About Magpie", self)
+        about_action.setShortcut(QKeySequence("Ctrl+,"))
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
+        help_menu.addSeparator()
+
+        shortcuts_action = QAction("Keyboard Shortcuts", self)
+        shortcuts_action.setShortcut(QKeySequence("?"))
+        shortcuts_action.triggered.connect(self._show_help)
+        help_menu.addAction(shortcuts_action)
+
+
+    def _show_about(self):
+        """Show the About dialog."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("About Magpie")
+        dlg.setFixedSize(420, 320)
+        dlg.setStyleSheet(f"""
+            QDialog {{
+                background: {C_BG_CARD};
+                border: 1px solid {C_BORDER};
+                border-radius: 12px;
+            }}
+            QLabel {{ color: {C_TEXT_PRI}; background: transparent; }}
+        """)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(32, 28, 32, 24)
+        lay.setSpacing(0)
+
+        # App icon / name
+        icon_lbl = QLabel("🐦")
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setStyleSheet("font-size: 48px;")
+        lay.addWidget(icon_lbl)
+
+        lay.addSpacing(10)
+
+        name_lbl = QLabel("Puffin")
+        name_lbl.setAlignment(Qt.AlignCenter)
+        name_lbl.setStyleSheet(f"""
+            font-size: 22px;
+            font-weight: bold;
+            color: {C_TEXT_PRI};
+            letter-spacing: -0.5px;
+        """)
+        lay.addWidget(name_lbl)
+
+        ver_lbl = QLabel(f"Version {__APP_VERSION__}")
+        ver_lbl.setAlignment(Qt.AlignCenter)
+        ver_lbl.setStyleSheet(f"font-size: 12px; color: {C_TEXT_DIM}; margin-top: 2px;")
+        lay.addWidget(ver_lbl)
+
+        lay.addSpacing(16)
+
+        # Divider
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet(f"color: {C_BORDER};")
+        lay.addWidget(line)
+
+        lay.addSpacing(14)
+
+        # Author / email / URL
+        def info_row(label: str, value: str, url: str = "") -> QLabel:
+            if url:
+                text = (f'<span style="color:{C_TEXT_DIM};">{label}:&nbsp;</span>'
+                        f'<a href="{url}" style="color:{C_ACCENT}; '
+                        f'text-decoration:none;">{value}</a>')
+            else:
+                text = (f'<span style="color:{C_TEXT_DIM};">{label}:&nbsp;</span>'
+                        f'<span style="color:{C_TEXT_PRI};">{value}</span>')
+            lbl = QLabel(text)
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet("font-size: 13px;")
+            lbl.setOpenExternalLinks(True)
+            return lbl
+
+        lay.addWidget(info_row("Developer", __APP_AUTHOR__))
+        lay.addSpacing(4)
+        lay.addWidget(info_row("Email", __APP_EMAIL__, f"mailto:{__APP_EMAIL__}"))
+        lay.addSpacing(4)
+        lay.addWidget(info_row("Source", __APP_URL__, __APP_URL__))
+
+        lay.addSpacing(6)
+
+        desc = QLabel("hledger terminal client dashboard")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet(f"font-size: 11px; color: {C_TEXT_DIM}; margin-top: 8px;")
+        lay.addWidget(desc)
+
+        lay.addStretch()
+
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setFixedHeight(36)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {C_BG_HOVER};
+                color: {C_TEXT_PRI};
+                border: 1px solid {C_BORDER};
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 0 28px;
+            }}
+            QPushButton:hover {{
+                background: {C_ACCENT}22;
+                border-color: {C_ACCENT}66;
+                color: {C_ACCENT};
+            }}
+        """)
+        close_btn.clicked.connect(dlg.accept)
+        lay.addWidget(close_btn, 0, Qt.AlignCenter)
+
+        dlg.exec()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
