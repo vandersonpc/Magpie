@@ -32,7 +32,7 @@ jobs:
           pip install pyinstaller PySide6
 
       - name: Build with PyInstaller
-        run: pyinstaller Magpie.spec --clean --distpath dist-linux
+        run: pyinstaller magpie.spec --clean --distpath dist-linux
 
       - name: Create AppImage
         run: |
@@ -40,7 +40,7 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           mkdir -p Magpie.AppDir/usr/bin
           cp -r dist-linux/Magpie/* Magpie.AppDir/usr/bin/
-          cp resources/magpie.png Magpie.AppDir/
+          cp resources/magpie-256.png Magpie.AppDir/
           cat > Magpie.AppDir/Magpie.desktop <<EOL
           [Desktop Entry]
           Name=Magpie
