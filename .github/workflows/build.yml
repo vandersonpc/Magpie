@@ -2,8 +2,10 @@ name: Build Magpie (Cross-Platform)
 
 on:
   push:
+    types: [opened, synchronize, edited, ready_for_review]
     branches: [ main ]
-  pull_request:
+  pull_request:  
+  types: [opened, synchronize, edited, ready_for_review]
     branches: [ main ]
 
 jobs:
