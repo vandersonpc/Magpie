@@ -42,10 +42,21 @@ jobs:
           mkdir -p Magpie.AppDir/usr/bin
           cp -r dist-linux/Magpie/* Magpie.AppDir/usr/bin/
           cp resources/magpie-256.png Magpie.AppDir/
+          # Inside the Create AppImage step, after copying files
+          cat > Magpie.AppDir/AppRun << EOL
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          export PATH="${HERE}/usr/bin:${PATH}"
+          exec "${HERE}/usr/bin/Magpie" "$@"
+          EOL
+
+            chmod +x Magpie.AppDir/AppRun
+
+
           cat > Magpie.AppDir/Magpie.desktop <<EOL
           [Desktop Entry]
           Name=Magpie
-          Exec=Magpie
+          Exec=AppRun
           Icon=magpie-256
           Type=Application
           Categories=Utility;
@@ -96,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Magpie-Windows-Installer
-          path: installer_output/Magpie_Setup.exe
+          path: installer/installer_output/Magpie_Setup.exe
           if-no-files-found: error
 
   build-macos:
