@@ -24,7 +24,7 @@ Uninstallable=yes
 ; ---------------------------------------------
 [Files]
 ; Include all files from the PyInstaller dist folder
-Source: "dist-windows\Magpie\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "dist\Magpie\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 ; ---------------------------------------------
 ; Shortcuts
