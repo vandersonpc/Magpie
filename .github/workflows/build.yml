@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    tags: [ "v*" ]               # ← added: trigger on version tags (v1.0.0, v2.3.4, etc.)
   pull_request:  
     types: [opened, synchronize, edited, ready_for_review]
     branches: [ main ]
@@ -49,14 +50,15 @@ jobs:
           Type=Application
           Categories=Utility;
           EOL
-          ./appimagetool-x86_64.AppImage Magpie.AppDir
-          mv  Magpie-${{ env.VERSION }}.AppImage Magpie-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage Magpie.AppDir Magpie-${{ env.VERSION }}-x86_64.AppImage
+          # ↑ fixed naming directly in appimagetool call (cleaner)
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: Magpie-Linux-AppImage
-          path: Magpie-${{ env.VERSION }}.AppImage
+          path: Magpie-${{ env.VERSION }}-x86_64.AppImage
+          if-no-files-found: error
 
   build-windows:
     name: Build Windows Installer
@@ -69,7 +71,7 @@ jobs:
         id: get_version
         run: |
           $version = Get-Content version.txt
-          Write-Host "VERSION=$version" >> $env:GITHUB_ENV
+          echo "VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -84,7 +86,6 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller magpie.spec --clean --distpath installer/dist-windows
 
-        
       - name: Create Windows Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
@@ -92,10 +93,11 @@ jobs:
           options: /O+
 
       - name: Upload Windows installer
-        uses: actions/checkout@v4
+        uses: actions/upload-artifact@v4
         with:
           name: Magpie-Windows-Installer
           path: installer_output/Magpie_Setup.exe
+          if-no-files-found: error
 
   build-macos:
     name: Build macOS App
@@ -134,5 +136,54 @@ jobs:
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Magpie-macOS
+          name: Magpie-macOS-DMG
           path: Magpie-${{ env.VERSION }}-macOS.dmg
+          if-no-files-found: error
+
+  # ────────────────────────────────────────────────
+  #          New: Release job – runs only on tags
+  # ────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')   # only when a tag is pushed
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: Magpie-Linux-AppImage
+
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: Magpie-Windows-Installer
+
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: Magpie-macOS-DMG
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Magpie ${{ github.ref_name }}
+          body: |
+            Automated release for Magpie ${{ github.ref_name }}
+            
+            **Assets:**
+            - Linux: AppImage (x86_64)
+            - Windows: Setup installer (.exe)
+            - macOS: Disk Image (.dmg)
+            
+            Built from commit ${{ github.sha }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          files: |
+            Magpie-*.AppImage
+            Magpie_Setup.exe
+            Magpie-*-macOS.dmg
