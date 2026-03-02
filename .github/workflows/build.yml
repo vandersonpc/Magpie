@@ -1,200 +1,147 @@
-name: Build Magpie (Cross-Platform)
+name: Build & Release Magpie
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    tags: [ "v*" ]               # ← added: trigger on version tags (v1.0.0, v2.3.4, etc.)
-  pull_request:  
-    types: [opened, synchronize, edited, ready_for_review]
-    branches: [ main ]
+    branches: [main]
+    tags: [v*]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build-linux:
-    name: Build Linux AppImage
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            name: Linux AppImage
+            artifact: Magpie-Linux-AppImage
+            file: Magpie-${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}-x86_64.AppImage
+          - os: windows
+            name: Windows Installer
+            artifact: Magpie-Windows-Installer
+            file: Magpie_Setup.exe
+          - os: macos
+            name: macOS DMG
+            artifact: Magpie-macOS-DMG
+            file: Magpie-${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}-macOS.dmg
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read version
-        id: get_version
+      - name: Set version tag
+        id: ver
         run: |
-          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          if [[ $GITHUB_REF_TYPE == tag ]]; then
+            echo "ver=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ver=latest" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.13'  # Change to '3.14' if your deps fully support it
+          cache: pip
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6
 
-      - name: Build with PyInstaller
-        run: pyinstaller magpie.spec --clean --distpath dist-linux
+      - name: PyInstaller build
+        run: pyinstaller magpie.spec --clean --distpath dist
 
-      - name: Create AppImage
+      # Linux: linuxdeploy + Qt plugin (recommended for PySide6)
+      - name: Build AppImage with linuxdeploy
+        if: matrix.os == 'ubuntu'
         run: |
-          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          mkdir -p Magpie.AppDir/usr/bin
-          cp -r dist-linux/Magpie/* Magpie.AppDir/usr/bin/
-          cp resources/magpie-256.png Magpie.AppDir/
-          # Inside the Create AppImage step, after copying files
-          cat > Magpie.AppDir/AppRun << EOL
-          #!/bin/sh
-          HERE="$(dirname "$(readlink -f "${0}")")"
-          export PATH="${HERE}/usr/bin:${PATH}"
-          exec "${HERE}/usr/bin/Magpie" "$@"
-          EOL
+          # Download latest continuous builds
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
 
-            chmod +x Magpie.AppDir/AppRun
+          chmod +x linuxdeploy*.AppImage linuxdeploy-plugin-qt*.AppImage
 
+          # Prepare AppDir
+          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
 
-          cat > Magpie.AppDir/Magpie.desktop <<EOL
+          # Copy PyInstaller --onedir output
+          cp -r dist/Magpie/* AppDir/usr/bin/
+
+          # Icon (linuxdeploy will handle scaling/resolutions if needed)
+          cp resources/magpie-256.png AppDir/usr/share/icons/hicolor/256x256/apps/magpie.png
+
+          # .desktop file (minimal but sufficient)
+          cat > AppDir/magpie.desktop << EOF
           [Desktop Entry]
           Name=Magpie
-          Exec=AppRun
-          Icon=magpie-256
+          Exec=Magpie
+          Icon=magpie
           Type=Application
           Categories=Utility;
-          EOL
-          ./appimagetool-x86_64.AppImage Magpie.AppDir Magpie-${{ env.VERSION }}-x86_64.AppImage
-          # ↑ fixed naming directly in appimagetool call (cleaner)
+          Terminal=false
+          StartupWMClass=Magpie
+          EOF
 
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Magpie-Linux-AppImage
-          path: Magpie-${{ env.VERSION }}-x86_64.AppImage
-          if-no-files-found: error
+          # Build → linuxdeploy bundles Qt deps + calls appimagetool automatically
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --desktop-file AppDir/magpie.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/magpie.png \
+            --executable AppDir/usr/bin/Magpie \
+            --plugin qt \
+            --output appimage
 
-  build-windows:
-    name: Build Windows Installer
-    runs-on: windows-latest
+          # Rename artifact to match matrix pattern
+          mv Magpie*.AppImage "${{ matrix.file }}"
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Read version
-        id: get_version
-        run: |
-          $version = Get-Content version.txt
-          echo "VERSION=$version" >> $env:GITHUB_ENV
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.14'
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install pyinstaller PySide6
-
-      - name: Build with PyInstaller
-        run: pyinstaller magpie.spec --clean --distpath installer/dist-windows
-
-      - name: Create Windows Installer
+      # Windows: Inno Setup
+      - name: Build Installer
+        if: matrix.os == 'windows'
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: installer/installer.iss
           options: /O+
 
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: Magpie-Windows-Installer
-          path: installer/installer_output/Magpie_Setup.exe
-          if-no-files-found: error
-
-  build-macos:
-    name: Build macOS App
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Read version
-        id: get_version
+      # macOS: Simple DMG
+      - name: Build DMG
+        if: matrix.os == 'macos'
         run: |
-          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          mkdir dmg && mv dist/Magpie.app dmg/
+          hdiutil create -volname Magpie -srcfolder dmg -ov -format UDZO "${{ matrix.file }}"
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/upload-artifact@v4
         with:
-          python-version: '3.14'
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.file }}
+          retention-days: 7
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller PySide6
-
-      - name: Build with PyInstaller
-        run: pyinstaller magpie.spec --clean --distpath dist-macos
-
-      - name: Create DMG
-        run: |
-          mkdir -p dmg
-          mv dist-macos/Magpie.app dmg/
-          hdiutil create -volname "Magpie" \
-            -srcfolder dmg \
-            -ov -format UDZO \
-            Magpie-${{ env.VERSION }}-macOS.dmg
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Magpie-macOS-DMG
-          path: Magpie-${{ env.VERSION }}-macOS.dmg
-          if-no-files-found: error
-
-  # ────────────────────────────────────────────────
-  #          New: Release job – runs only on tags
-  # ────────────────────────────────────────────────
   release:
-    name: Create GitHub Release
-    needs: [build-linux, build-windows, build-macos]
+    needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')   # only when a tag is pushed
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Linux AppImage
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: Magpie-Linux-AppImage
+          path: artifacts
+          pattern: Magpie-*
+          merge-multiple: true
 
-      - name: Download Windows Installer
-        uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
-          name: Magpie-Windows-Installer
-
-      - name: Download macOS DMG
-        uses: actions/download-artifact@v4
-        with:
-          name: Magpie-macOS-DMG
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
           name: Magpie ${{ github.ref_name }}
           body: |
-            Automated release for Magpie ${{ github.ref_name }}
-            
-            **Assets:**
-            - Linux: AppImage (x86_64)
-            - Windows: Setup installer (.exe)
-            - macOS: Disk Image (.dmg)
-            
-            Built from commit ${{ github.sha }}
-          draft: false
+            Cross-platform release ${{ github.ref_name }}
+
+            • Linux AppImage (x86_64)
+            • Windows Setup (.exe)
+            • macOS DMG
           prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           files: |
-            Magpie-*.AppImage
-            Magpie_Setup.exe
-            Magpie-*-macOS.dmg
+            artifacts/**/Magpie*.AppImage
+            artifacts/**/Magpie_Setup.exe
+            artifacts/**/Magpie*-macOS.dmg
