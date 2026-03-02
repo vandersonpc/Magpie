@@ -82,7 +82,7 @@ jobs:
           pip install pyinstaller PySide6
 
       - name: Build with PyInstaller
-        run: pyinstaller Magpie.spec --clean --distpath dist-windows
+        run: pyinstaller magpie.spec --clean --distpath dist-windows
 
         
       - name: Create Windows Installer
@@ -120,7 +120,7 @@ jobs:
           pip install pyinstaller PySide6
 
       - name: Build with PyInstaller
-        run: pyinstaller Magpie.spec --clean --distpath dist-macos
+        run: pyinstaller magpie.spec --clean --distpath dist-macos
 
       - name: Create DMG
         run: |
