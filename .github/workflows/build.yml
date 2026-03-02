@@ -45,7 +45,7 @@ jobs:
           [Desktop Entry]
           Name=Magpie
           Exec=Magpie
-          Icon=magpie-256.png
+          Icon=magpie-256
           Type=Application
           Categories=Utility;
           EOL
@@ -82,7 +82,7 @@ jobs:
           pip install pyinstaller PySide6
 
       - name: Build with PyInstaller
-        run: pyinstaller magpie.spec --clean --distpath dist-windows
+        run: pyinstaller magpie.spec --clean --distpath installer/dist-windows
 
         
       - name: Create Windows Installer
