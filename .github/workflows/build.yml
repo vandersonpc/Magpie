@@ -103,7 +103,7 @@ jobs:
         if: matrix.os == 'windows'
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: installer/installer.iss
+          path: installer.iss
           options: /O+
 
       # macOS: Simple DMG
