@@ -5,7 +5,7 @@
 [Setup]
 ; Basic info
 AppName=Magpie
-AppVersion={#MagpieVersion}
+AppVersion=1.0.1
 DefaultDirName={pf}\Magpie
 DefaultGroupName=Magpie
 OutputDir=installer_output

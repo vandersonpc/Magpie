@@ -36,7 +36,7 @@ jobs:
 
       - name: Create AppImage
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage
+          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           mkdir -p Magpie.AppDir/usr/bin
           cp -r dist-linux/Magpie/* Magpie.AppDir/usr/bin/
