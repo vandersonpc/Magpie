@@ -59,22 +59,15 @@ jobs:
       - name: Build AppImage with linuxdeploy
         if: matrix.os == 'ubuntu'
         run: |
-          # Download latest continuous builds
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
 
-          chmod +x linuxdeploy*.AppImage linuxdeploy-plugin-qt*.AppImage
-
-          # Prepare AppDir
           mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
 
-          # Copy PyInstaller --onedir output
           cp -r dist/Magpie/* AppDir/usr/bin/
 
-          # Icon (linuxdeploy will handle scaling/resolutions if needed)
           cp resources/magpie-256.png AppDir/usr/share/icons/hicolor/256x256/apps/magpie.png
 
-          # .desktop file (minimal but sufficient)
           cat > AppDir/magpie.desktop << EOF
           [Desktop Entry]
           Name=Magpie
@@ -86,16 +79,13 @@ jobs:
           StartupWMClass=Magpie
           EOF
 
-          # Build → linuxdeploy bundles Qt deps + calls appimagetool automatically
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --desktop-file AppDir/magpie.desktop \
             --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/magpie.png \
             --executable AppDir/usr/bin/Magpie \
-            --plugin qt \
             --output appimage
 
-          # Rename artifact to match matrix pattern
           mv Magpie*.AppImage "${{ matrix.file }}"
 
       # Windows: Inno Setup
