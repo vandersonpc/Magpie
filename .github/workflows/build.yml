@@ -50,7 +50,7 @@ jobs:
           Categories=Utility;
           EOL
           ./appimagetool-x86_64.AppImage Magpie.AppDir
-          mv Magpie-x86_64.AppImage Magpie-${{ env.VERSION }}.AppImage
+          mv  Magpie-${{ env.VERSION }}.AppImage Magpie-x86_64.AppImage
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
