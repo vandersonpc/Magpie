@@ -43,7 +43,7 @@ from PySide6.QtGui import (
     QFont, QFontDatabase, QColor, QPalette, QIcon, QPixmap,
     QPainter, QPen, QBrush, QLinearGradient, QTextCursor,
     QSyntaxHighlighter, QTextCharFormat, QKeySequence, QShortcut,
-    QAction, QPolygonF, QPainterPath,
+    QAction, QPolygonF, QPainterPath, QTextDocument
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
